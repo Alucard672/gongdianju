@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from './questions.mjs?v=20260609z';
+import { QUESTION_BANK } from './questions.mjs?v=20260609z2';
 import {
   EXAM_COUNTS,
   TYPE_LABELS,
@@ -7,7 +7,7 @@ import {
   getLocalDateKey,
   getScoreText,
   pickExamQuestions,
-} from './examLogic.mjs?v=20260609z';
+} from './examLogic.mjs?v=20260609z2';
 
 // 与页面同域，避免 workers.dev 在国内被运营商重置导致排行榜/云端保存失败
 const API_BASE = '';
