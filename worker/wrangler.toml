@@ -1,0 +1,8 @@
+name = "gongdianju-api"
+main = "src/index.js"
+compatibility_date = "2026-06-09"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gongdianju_exam"
+database_id = "e77f9503-53b5-4f23-8115-c555df287b3f"

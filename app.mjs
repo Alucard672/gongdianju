@@ -4,13 +4,12 @@ import {
   TYPE_LABELS,
   calculateScore,
   formatDuration,
-  getDailyRanking,
   getLocalDateKey,
   getScoreText,
   pickExamQuestions,
 } from './examLogic.mjs?v=20260609l';
 
-const STORAGE_KEY = 'supply-chain-exam-records-v1';
+const API_BASE = 'https://gongdianju-api.gongdianju.workers.dev';
 
 const state = {
   user: null,
@@ -64,18 +63,6 @@ const els = {
 
 if (!history.state) {
   history.replaceState({ view: 'login' }, '', '#login');
-}
-
-function readRecords() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-  } catch {
-    return [];
-  }
-}
-
-function writeRecords(records) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
 function showView(viewName) {
@@ -245,7 +232,7 @@ function stopTimer() {
   }
 }
 
-function finishExam() {
+async function finishExam() {
   stopTimer();
   const submittedAt = new Date();
   const durationMs = state.startedAt ? Math.max(0, Date.now() - state.startedAt) : 0;
@@ -263,14 +250,39 @@ function finishExam() {
     dateKey: getLocalDateKey(submittedAt),
     details: result.details,
   };
-  const records = readRecords();
-  records.push(record);
-  writeRecords(records);
   state.result = record;
   state.currentTab = 'all';
   showView('result');
   renderResult();
   setHistoryState('result');
+
+  try {
+    const saved = await saveResult(record);
+    state.result.remoteId = saved.record?.id;
+  } catch (error) {
+    alert(`成绩已在本机显示，但云端保存失败：${error.message}`);
+  }
+}
+
+async function saveResult(record) {
+  const response = await fetch(`${API_BASE}/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: record.name,
+      phone: record.phone,
+      score: record.score,
+      total: record.total,
+      correctCount: record.correctCount,
+      questionCount: record.questionCount,
+      durationMs: record.durationMs,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.error || '网络异常');
+  }
+  return payload;
 }
 
 function openQuestionSheet() {
@@ -370,8 +382,19 @@ function renderReview(tabName) {
   `).join('');
 }
 
-function renderRanking(target = els.rankingList) {
-  const ranking = getDailyRanking(readRecords());
+async function renderRanking(target = els.rankingList) {
+  target.innerHTML = '<div class="empty-state">排行榜加载中...</div>';
+  let ranking = [];
+  try {
+    const response = await fetch(`${API_BASE}/ranking`);
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || '加载失败');
+    ranking = payload.ranking || [];
+  } catch (error) {
+    target.innerHTML = `<div class="empty-state">排行榜加载失败：${escapeHtml(error.message)}</div>`;
+    return;
+  }
+
   if (!ranking.length) {
     target.innerHTML = '<div class="empty-state">今日暂无排行</div>';
     return;
