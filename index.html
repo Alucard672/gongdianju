@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>夏邑物资供应分中心模拟考试</title>
+    <link rel="stylesheet" href="./styles.css?v=20260609g">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <button class="icon-button hidden" id="backButton" type="button" aria-label="返回">‹</button>
+        <h1 id="pageTitle">夏邑物资供应分中心模拟考试</h1>
+        <button class="icon-button" id="rankingShortcut" type="button" aria-label="排行榜">▦</button>
+      </header>
+
+      <section class="view active" id="loginView">
+        <div class="login-panel">
+          <div class="brand-block">
+            <span class="brand-mark">考</span>
+            <div>
+              <h2>供应链知识调考</h2>
+              <p>60 单选 · 15 多选 · 20 判断</p>
+            </div>
+          </div>
+
+          <form id="loginForm" class="form-stack">
+            <label>
+              姓名
+              <input id="nameInput" name="name" type="text" autocomplete="name" required maxlength="20" placeholder="请输入姓名">
+            </label>
+            <label>
+              手机号
+              <input id="phoneInput" name="phone" type="tel" autocomplete="tel" required pattern="^1[3-9]\d{9}$" placeholder="请输入 11 位手机号">
+            </label>
+            <button class="primary-button" type="submit">开始考试</button>
+          </form>
+
+          <div class="query-row">
+            <input id="queryPhoneInput" type="tel" placeholder="输入手机号查询历史成绩">
+            <button id="queryHistoryButton" type="button">查询</button>
+          </div>
+        </div>
+
+        <section class="list-panel">
+          <div class="section-title">
+            <h3>我的考试记录</h3>
+            <span id="historyHint">输入手机号后可查看</span>
+          </div>
+          <div id="historyList" class="empty-state">暂无查询结果</div>
+        </section>
+      </section>
+
+      <section class="view" id="examView">
+        <div class="exam-status">
+          <span id="progressText">第 1 / 95 题</span>
+          <strong id="timerText">00:00:00</strong>
+        </div>
+        <div class="progress-track">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+
+        <article class="question-panel">
+          <div class="question-meta">
+            <span id="questionType">单选题</span>
+            <span id="questionScore">1 分</span>
+          </div>
+          <button id="selectAllButton" class="select-all-button hidden" type="button">全选</button>
+          <h2 id="questionStem"></h2>
+          <div id="optionsList" class="options-list"></div>
+        </article>
+
+        <footer class="exam-actions">
+          <button id="nextQuestionButton" class="primary-button" type="button">下一题</button>
+        </footer>
+      </section>
+
+      <section class="view" id="resultView">
+        <section class="score-card">
+          <div>
+            <span>本次成绩</span>
+            <strong id="scoreText">0.00</strong>
+            <small>分</small>
+          </div>
+          <div>
+            <span>用时</span>
+            <strong id="durationText">00:00:00</strong>
+          </div>
+        </section>
+
+        <nav class="tabs" aria-label="成绩视图">
+          <button class="tab active" data-tab="all" type="button">全部</button>
+          <button class="tab" data-tab="correct" type="button">答对</button>
+          <button class="tab" data-tab="wrong" type="button">答错</button>
+          <button class="tab" data-tab="ranking" type="button">排行榜</button>
+        </nav>
+
+        <div id="reviewList" class="review-list"></div>
+        <div id="rankingList" class="ranking-list hidden"></div>
+
+        <div class="bottom-actions">
+          <button id="restartButton" type="button">重新考试</button>
+          <button id="homeButton" type="button">返回首页</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.mjs?v=20260609h"></script>
+  </body>
+</html>
