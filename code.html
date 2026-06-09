@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>今日授权码</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin:0; min-height:100vh; display:grid; place-items:center; background:#f3f6fb;
+        font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; color:#1f2329; }
+      .card { width:min(92vw,360px); background:#fff; border-radius:18px; padding:28px 24px; text-align:center;
+        box-shadow:0 18px 50px rgba(15,23,42,.12); }
+      .card h1 { margin:0 0 4px; font-size:18px; }
+      .date { color:#6b7280; font-size:13px; margin-bottom:22px; }
+      .code { font-size:56px; font-weight:800; letter-spacing:10px; color:#2563eb; font-variant-numeric:tabular-nums; }
+      .hint { margin-top:20px; color:#94a3b8; font-size:12px; line-height:1.6; }
+      .err { color:#dc2626; font-size:15px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>今日考试授权码</h1>
+      <div class="date" id="date">—</div>
+      <div class="code" id="code">····</div>
+      <div class="hint">每天 0 点(北京时间)自动更新<br>请勿外传本链接</div>
+    </div>
+    <script>
+      (async () => {
+        const token = new URLSearchParams(location.search).get('token') || '';
+        try {
+          const res = await fetch('/code?token=' + encodeURIComponent(token), { cache: 'no-store' });
+          const j = await res.json();
+          if (!j.ok) throw new Error('链接无效或无权限');
+          document.getElementById('date').textContent = j.date;
+          document.getElementById('code').textContent = j.code;
+        } catch (e) {
+          document.getElementById('code').className = 'err';
+          document.getElementById('code').textContent = e.message;
+        }
+      })();
+    </script>
+  </body>
+</html>

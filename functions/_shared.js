@@ -5,6 +5,26 @@ export function json(data, status = 200) {
   });
 }
 
+// 服务端密钥（仅存在于 Functions，不会下发到前端）
+const CODE_SECRET = 'gdj-supply-2026::x7Qm91#kZ@auth';
+// 查看授权码的管理员密链 token（请保密，泄露后任何人可看当天码）
+export const ADMIN_TOKEN = 'gdj7f3a9c2e8b41d6';
+
+// 北京时间日期 key（UTC+8），北京 0 点切换
+export function getBeijingDateKey(now = new Date()) {
+  const shifted = new Date(now.getTime() + 8 * 3600 * 1000);
+  return shifted.toISOString().slice(0, 10);
+}
+
+// 当天授权码：由密钥 + 北京日期确定性生成的 4 位数字，每天 0 点自动变化
+export async function getDailyCode(dateKey = getBeijingDateKey()) {
+  const data = new TextEncoder().encode(`${CODE_SECRET}|${dateKey}`);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  const arr = new Uint8Array(buf);
+  const num = ((arr[0] << 24) | (arr[1] << 16) | (arr[2] << 8) | arr[3]) >>> 0;
+  return String(num % 10000).padStart(4, '0');
+}
+
 export function getDateKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   const year = date.getUTCFullYear();

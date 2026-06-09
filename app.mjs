@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from './questions.mjs?v=20260609y';
+import { QUESTION_BANK } from './questions.mjs?v=20260609z';
 import {
   EXAM_COUNTS,
   TYPE_LABELS,
@@ -7,7 +7,7 @@ import {
   getLocalDateKey,
   getScoreText,
   pickExamQuestions,
-} from './examLogic.mjs?v=20260609y';
+} from './examLogic.mjs?v=20260609z';
 
 // 与页面同域，避免 workers.dev 在国内被运营商重置导致排行榜/云端保存失败
 const API_BASE = '';
@@ -35,6 +35,7 @@ const els = {
   loginForm: document.querySelector('#loginForm'),
   nameInput: document.querySelector('#nameInput'),
   phoneInput: document.querySelector('#phoneInput'),
+  codeInput: document.querySelector('#codeInput'),
   homeRankingButton: document.querySelector('#homeRankingButton'),
   progressText: document.querySelector('#progressText'),
   timerText: document.querySelector('#timerText'),
@@ -529,10 +530,11 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-els.loginForm.addEventListener('submit', (event) => {
+els.loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const name = els.nameInput.value.trim();
   const phone = els.phoneInput.value.trim();
+  const code = els.codeInput.value.trim();
   if (!name) {
     showToast('请输入姓名');
     return;
@@ -540,6 +542,29 @@ els.loginForm.addEventListener('submit', (event) => {
   if (!validatePhone(phone)) {
     showToast('请输入正确的 11 位手机号');
     return;
+  }
+  if (!/^\d{4}$/.test(code)) {
+    showToast('请输入 4 位授权码');
+    return;
+  }
+  const submitButton = els.loginForm.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  try {
+    const response = await fetch(`${API_BASE}/verify-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) {
+      showToast(payload.error || '授权码错误');
+      return;
+    }
+  } catch (error) {
+    showToast(`网络异常，无法校验授权码：${error.message}`);
+    return;
+  } finally {
+    submitButton.disabled = false;
   }
   startExam({ name, phone });
 });
