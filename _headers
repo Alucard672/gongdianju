@@ -1,0 +1,7 @@
+# HTML 始终回源校验，避免内置浏览器缓存旧页面
+/
+  Cache-Control: no-cache, must-revalidate
+/index.html
+  Cache-Control: no-cache, must-revalidate
+/admin.html
+  Cache-Control: no-cache, must-revalidate

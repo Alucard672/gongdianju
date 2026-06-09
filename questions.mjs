@@ -4567,7 +4567,7 @@ export const QUESTION_BANK = [
     "options": [
       {
         "key": "A",
-        "text": "招标采购代理\n机构"
+        "text": "招标采购代理机构"
       },
       {
         "key": "B",
@@ -13055,7 +13055,7 @@ export const QUESTION_BANK = [
       },
       {
         "key": "B",
-        "text": "错误$"
+        "text": "错误"
       }
     ],
     "answer": "B",

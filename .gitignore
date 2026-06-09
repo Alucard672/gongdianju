@@ -3,3 +3,5 @@ dist/
 worker/.wrangler/
 .claude/
 node_modules/
+*.xlsx
+.~*

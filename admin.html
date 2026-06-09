@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>错题统计 · 管理</title>
+    <style>
+      :root { --blue:#2f73f6; --red:#dc2626; --muted:#6b7280; --line:#e6eaf2; }
+      * { box-sizing: border-box; }
+      body { margin:0; background:#f3f6fb; color:#1f2329; font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; font-size:14px; }
+      header { padding:18px 16px; background:linear-gradient(135deg,#1e40af,#2563eb); color:#fff; }
+      header h1 { margin:0 0 6px; font-size:19px; }
+      header p { margin:0; opacity:.85; font-size:13px; }
+      .summary { display:flex; gap:10px; padding:14px 16px; }
+      .stat-card { flex:1; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center; }
+      .stat-card b { display:block; font-size:22px; color:var(--blue); }
+      .stat-card span { color:var(--muted); font-size:12px; }
+      .toolbar { display:flex; gap:8px; align-items:center; padding:0 16px 10px; color:var(--muted); }
+      .toolbar select { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+      .list { padding:0 12px 40px; }
+      .row { display:grid; grid-template-columns:40px minmax(0,1fr) 86px; gap:10px; align-items:center; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:8px; }
+      .rank { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:#eef2fb; color:var(--blue); font-weight:800; }
+      .rank.top { background:var(--red); color:#fff; }
+      .q-type { display:inline-block; font-size:11px; color:var(--blue); background:#eaf1ff; border-radius:6px; padding:1px 6px; margin-right:6px; }
+      .q-stem { line-height:1.45; }
+      .q-meta { color:var(--muted); font-size:12px; margin-top:4px; }
+      .metric { text-align:right; }
+      .metric b { color:var(--red); font-size:18px; }
+      .metric span { display:block; color:var(--muted); font-size:11px; }
+      .empty, .loading { padding:40px 16px; text-align:center; color:var(--muted); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>错题统计</h1>
+      <p>全员答题 · 最常错的题排行</p>
+    </header>
+    <div class="summary">
+      <div class="stat-card"><b id="examCount">—</b><span>累计考试次数</span></div>
+      <div class="stat-card"><b id="wrongCount">—</b><span>累计错题数</span></div>
+      <div class="stat-card"><b id="qCount">—</b><span>涉及题目数</span></div>
+    </div>
+    <div class="toolbar">
+      排序：
+      <select id="sortSel">
+        <option value="wrong">按答错次数</option>
+        <option value="rate">按错误率</option>
+      </select>
+      <span id="updated"></span>
+    </div>
+    <div id="list" class="list"><div class="loading">加载中…</div></div>
+
+    <script type="module">
+      import { QUESTION_BANK } from './questions.mjs?v=20260609x';
+      const bank = new Map(QUESTION_BANK.map((q) => [q.sourceNo, q]));
+      const TYPE = { single: '单选', multiple: '多选', judge: '判断' };
+      const el = (id) => document.getElementById(id);
+      let data = [];
+
+      function render() {
+        const sort = el('sortSel').value;
+        const rows = [...data].sort((a, b) =>
+          sort === 'rate' ? b.rate - a.rate || b.wrong - a.wrong : b.wrong - a.wrong || b.rate - a.rate,
+        );
+        if (!rows.length) { el('list').innerHTML = '<div class="empty">暂无数据，等待有人交卷后再来看。</div>'; return; }
+        el('list').innerHTML = rows.map((r, i) => {
+          const q = bank.get(r.no);
+          const stem = q ? q.stem : `（题号 ${r.no}）`;
+          const type = TYPE[q?.type] || r.type || '';
+          return `
+            <div class="row">
+              <div class="rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+              <div>
+                <div class="q-stem"><span class="q-type">${type}</span>${escapeHtml(stem)}</div>
+                <div class="q-meta">题号 ${r.no} · 被抽到 ${r.asked} 次 · 答错 ${r.wrong} 次</div>
+              </div>
+              <div class="metric"><b>${r.rate}%</b><span>错误率</span></div>
+            </div>`;
+        }).join('');
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
+      }
+
+      el('sortSel').addEventListener('change', render);
+
+      try {
+        const res = await fetch('/stats', { cache: 'no-store' });
+        const j = await res.json();
+        if (!j.ok) throw new Error(j.error || '加载失败');
+        data = j.questions || [];
+        el('examCount').textContent = j.examCount;
+        el('wrongCount').textContent = j.wrongCount;
+        el('qCount').textContent = data.length;
+        render();
+      } catch (e) {
+        el('list').innerHTML = `<div class="empty">加载失败：${e.message}</div>`;
+      }
+    </script>
+  </body>
+</html>
