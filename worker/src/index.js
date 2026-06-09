@@ -1,11 +1,17 @@
 const ALLOWED_ORIGINS = new Set([
-  'http://localhost:8787',
   'https://alucard672.github.io',
 ]);
 
+const LOCALHOST_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const PAGES_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*pages\.dev$/;
+
+function isAllowedOrigin(origin) {
+  return ALLOWED_ORIGINS.has(origin) || LOCALHOST_ORIGIN.test(origin) || PAGES_ORIGIN.test(origin);
+}
+
 function corsHeaders(request) {
   const origin = request.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : 'https://alucard672.github.io';
+  const allowedOrigin = isAllowedOrigin(origin) ? origin : 'https://alucard672.github.io';
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',

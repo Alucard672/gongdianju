@@ -9,7 +9,8 @@ import {
   pickExamQuestions,
 } from './examLogic.mjs?v=20260609l';
 
-const API_BASE = 'https://gongdianju-api.gongdianju.workers.dev';
+// 与页面同域，避免 workers.dev 在国内被运营商重置导致排行榜/云端保存失败
+const API_BASE = '';
 
 const state = {
   user: null,
@@ -60,6 +61,59 @@ const els = {
   homeButton: document.querySelector('#homeButton'),
   tabs: [...document.querySelectorAll('.tab')],
 };
+
+// 内置浏览器（微信/企业微信/钉钉等）常会拦截原生 alert/confirm，
+// 这里用页面内自绘弹窗替代，保证所有 webview 都能交互。
+(function injectDialogStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .app-dialog-mask{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.45);padding:24px;}
+    .app-dialog{width:min(100%,320px);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(15,23,42,.3);}
+    .app-dialog-body{padding:22px 20px;font-size:16px;line-height:1.5;color:#1f2937;text-align:center;}
+    .app-dialog-actions{display:flex;border-top:1px solid #e5e7eb;}
+    .app-dialog-actions button{flex:1;border:0;background:#fff;padding:14px 0;font-size:16px;cursor:pointer;}
+    .app-dialog-actions button:active{background:#f3f4f6;}
+    .app-dialog-cancel{color:#6b7280;border-right:1px solid #e5e7eb;}
+    .app-dialog-ok{color:#2563eb;font-weight:600;}
+    .app-toast{position:fixed;left:50%;bottom:88px;z-index:1001;transform:translateX(-50%);max-width:80vw;background:rgba(17,24,39,.92);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;line-height:1.4;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.25);}
+  `;
+  document.head.appendChild(style);
+})();
+
+function showConfirm(message) {
+  return new Promise((resolve) => {
+    const mask = document.createElement('div');
+    mask.className = 'app-dialog-mask';
+    mask.innerHTML = `
+      <div class="app-dialog" role="dialog" aria-modal="true">
+        <div class="app-dialog-body"></div>
+        <div class="app-dialog-actions">
+          <button type="button" class="app-dialog-cancel">取消</button>
+          <button type="button" class="app-dialog-ok">确定</button>
+        </div>
+      </div>`;
+    mask.querySelector('.app-dialog-body').textContent = message;
+    const done = (value) => {
+      mask.remove();
+      resolve(value);
+    };
+    mask.querySelector('.app-dialog-cancel').addEventListener('click', () => done(false));
+    mask.querySelector('.app-dialog-ok').addEventListener('click', () => done(true));
+    document.body.appendChild(mask);
+  });
+}
+
+let toastTimer = null;
+function showToast(message) {
+  const existing = document.querySelector('.app-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'app-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => toast.remove(), 2600);
+}
 
 if (!history.state) {
   history.replaceState({ view: 'login' }, '', '#login');
@@ -209,12 +263,12 @@ function getUnansweredCount() {
   return state.questions.length - getAnsweredCount();
 }
 
-function submitExam() {
+async function submitExam() {
   const unansweredCount = getUnansweredCount();
   const message = unansweredCount
     ? `还有 ${unansweredCount} 题未作答，确定交卷吗？`
     : '确定交卷吗？';
-  if (!confirm(message)) return;
+  if (!(await showConfirm(message))) return;
   finishExam();
 }
 
@@ -260,7 +314,7 @@ async function finishExam() {
     const saved = await saveResult(record);
     state.result.remoteId = saved.record?.id;
   } catch (error) {
-    alert(`成绩已在本机显示，但云端保存失败：${error.message}`);
+    showToast(`成绩已在本机显示，但云端保存失败：${error.message}`);
   }
 }
 
@@ -436,11 +490,11 @@ els.loginForm.addEventListener('submit', (event) => {
   const name = els.nameInput.value.trim();
   const phone = els.phoneInput.value.trim();
   if (!name) {
-    alert('请输入姓名');
+    showToast('请输入姓名');
     return;
   }
   if (!validatePhone(phone)) {
-    alert('请输入正确的 11 位手机号');
+    showToast('请输入正确的 11 位手机号');
     return;
   }
   startExam({ name, phone });
@@ -461,10 +515,10 @@ els.questionSheetBody.addEventListener('click', (event) => {
 });
 els.restartButton.addEventListener('click', () => startExam(state.user));
 els.homeButton.addEventListener('click', () => showView('login'));
-els.backButton.addEventListener('click', () => {
+els.backButton.addEventListener('click', async () => {
   if (els.resultView.classList.contains('active') || els.rankingView.classList.contains('active')) {
     showView('login');
-  } else if (confirm('考试尚未完成，确定返回首页吗？')) {
+  } else if (await showConfirm('考试尚未完成，确定返回首页吗？')) {
     stopTimer();
     showView('login');
   }
