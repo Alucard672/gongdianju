@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from './questions.mjs?v=20260609x';
+import { QUESTION_BANK } from './questions.mjs?v=20260609y';
 import {
   EXAM_COUNTS,
   TYPE_LABELS,
@@ -7,7 +7,7 @@ import {
   getLocalDateKey,
   getScoreText,
   pickExamQuestions,
-} from './examLogic.mjs?v=20260609x';
+} from './examLogic.mjs?v=20260609y';
 
 // 与页面同域，避免 workers.dev 在国内被运营商重置导致排行榜/云端保存失败
 const API_BASE = '';
@@ -21,7 +21,7 @@ const state = {
   timerId: null,
   result: null,
   currentTab: 'all',
-  graded: {},
+  submitted: false,
 };
 
 const els = {
@@ -153,7 +153,7 @@ function startExam(user) {
   state.user = user;
   state.questions = pickExamQuestions(QUESTION_BANK, EXAM_COUNTS);
   state.answers = {};
-  state.graded = {};
+  state.submitted = false;
   state.currentIndex = 0;
   state.startedAt = null;
   state.result = null;
@@ -207,6 +207,7 @@ function renderSelectAllButton(question, show) {
 }
 
 function toggleSelectAll() {
+  if (state.submitted) return;
   const question = state.questions[state.currentIndex];
   if (question.type !== 'multiple') return;
   startTimerAfterFirstAnswer();
@@ -218,6 +219,7 @@ function toggleSelectAll() {
 }
 
 function toggleOption(question, key) {
+  if (state.submitted) return;
   startTimerAfterFirstAnswer();
   if (question.type === 'multiple') {
     const selected = new Set(getSelectedKeys(question));
@@ -266,6 +268,7 @@ function getUnansweredCount() {
 }
 
 async function submitExam() {
+  if (state.submitted) return;
   const unansweredCount = getUnansweredCount();
   const message = unansweredCount
     ? `还有 ${unansweredCount} 题未作答，确定交卷吗？`
@@ -307,6 +310,7 @@ async function finishExam() {
     details: result.details,
   };
   state.result = record;
+  state.submitted = true;
   state.currentTab = 'all';
   showView('result');
   renderResult();
@@ -578,6 +582,14 @@ window.addEventListener('beforeunload', stopTimer);
 window.addEventListener('popstate', (event) => {
   const payload = event.state;
   if (!payload) return;
+
+  // 已交卷：禁止侧滑回到答题页修改、重复交卷
+  if (payload.view === 'exam' && state.submitted) {
+    showView('result');
+    renderResult();
+    history.pushState({ view: 'result' }, '', '#result');
+    return;
+  }
 
   if (payload.view === 'exam' && state.questions.length) {
     state.currentIndex = Math.min(Math.max(Number(payload.index) || 0, 0), state.questions.length - 1);
