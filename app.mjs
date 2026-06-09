@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from './questions.mjs?v=20260609h';
+import { QUESTION_BANK } from './questions.mjs?v=20260609k';
 import {
   EXAM_COUNTS,
   TYPE_LABELS,
@@ -8,7 +8,7 @@ import {
   getLocalDateKey,
   getScoreText,
   pickExamQuestions,
-} from './examLogic.mjs?v=20260609h';
+} from './examLogic.mjs?v=20260609k';
 
 const STORAGE_KEY = 'supply-chain-exam-records-v1';
 
@@ -30,13 +30,11 @@ const els = {
   loginView: document.querySelector('#loginView'),
   examView: document.querySelector('#examView'),
   resultView: document.querySelector('#resultView'),
+  rankingView: document.querySelector('#rankingView'),
   loginForm: document.querySelector('#loginForm'),
   nameInput: document.querySelector('#nameInput'),
   phoneInput: document.querySelector('#phoneInput'),
-  queryPhoneInput: document.querySelector('#queryPhoneInput'),
-  queryHistoryButton: document.querySelector('#queryHistoryButton'),
-  historyList: document.querySelector('#historyList'),
-  historyHint: document.querySelector('#historyHint'),
+  homeRankingButton: document.querySelector('#homeRankingButton'),
   progressText: document.querySelector('#progressText'),
   timerText: document.querySelector('#timerText'),
   progressBar: document.querySelector('#progressBar'),
@@ -45,15 +43,28 @@ const els = {
   questionStem: document.querySelector('#questionStem'),
   selectAllButton: document.querySelector('#selectAllButton'),
   optionsList: document.querySelector('#optionsList'),
-  nextQuestionButton: document.querySelector('#nextQuestionButton'),
+  previousQuestionButton: document.querySelector('#previousQuestionButton'),
+  inlineNextQuestionButton: document.querySelector('#inlineNextQuestionButton'),
+  questionCardButton: document.querySelector('#questionCardButton'),
+  submitExamButton: document.querySelector('#submitExamButton'),
+  questionSheet: document.querySelector('#questionSheet'),
+  questionSheetBackdrop: document.querySelector('#questionSheetBackdrop'),
+  closeQuestionSheetButton: document.querySelector('#closeQuestionSheetButton'),
+  questionSheetSummary: document.querySelector('#questionSheetSummary'),
+  questionSheetBody: document.querySelector('#questionSheetBody'),
   scoreText: document.querySelector('#scoreText'),
   durationText: document.querySelector('#durationText'),
   reviewList: document.querySelector('#reviewList'),
   rankingList: document.querySelector('#rankingList'),
+  homeRankingList: document.querySelector('#homeRankingList'),
   restartButton: document.querySelector('#restartButton'),
   homeButton: document.querySelector('#homeButton'),
   tabs: [...document.querySelectorAll('.tab')],
 };
+
+if (!history.state) {
+  history.replaceState({ view: 'login' }, '', '#login');
+}
 
 function readRecords() {
   try {
@@ -72,6 +83,7 @@ function showView(viewName) {
     login: '夏邑物资供应分中心模拟考试',
     exam: '夏邑物资供应分中心模拟考试',
     result: '考试结果',
+    ranking: '排行榜',
   };
   els.pageTitle.textContent = titles[viewName];
   els.backButton.classList.toggle('hidden', viewName === 'login');
@@ -79,9 +91,16 @@ function showView(viewName) {
     login: els.loginView,
     exam: els.examView,
     result: els.resultView,
+    ranking: els.rankingView,
   })) {
     element.classList.toggle('active', name === viewName);
   }
+}
+
+function setHistoryState(viewName, options = {}) {
+  const payload = { view: viewName, ...options };
+  const hash = viewName === 'exam' ? `#q-${options.index + 1}` : `#${viewName}`;
+  history.pushState(payload, '', hash);
 }
 
 function validatePhone(phone) {
@@ -99,6 +118,7 @@ function startExam(user) {
   els.timerText.textContent = '00:00:00';
   showView('exam');
   renderQuestion();
+  setHistoryState('exam', { index: state.currentIndex });
 }
 
 function renderQuestion() {
@@ -106,7 +126,7 @@ function renderQuestion() {
   const isLast = state.currentIndex === state.questions.length - 1;
 
   els.progressText.textContent = `第 ${state.currentIndex + 1} / ${state.questions.length} 题`;
-  els.progressBar.style.width = `${(state.currentIndex / state.questions.length) * 100}%`;
+  els.progressBar.style.width = `${((state.currentIndex + 1) / state.questions.length) * 100}%`;
   els.questionType.textContent = TYPE_LABELS[question.type];
   els.questionScore.textContent = `${question.score} 分`;
   els.questionStem.textContent = question.stem;
@@ -124,7 +144,9 @@ function renderQuestion() {
     els.optionsList.append(item);
   });
 
-  els.nextQuestionButton.textContent = isLast ? '提交试卷' : '下一题';
+  els.previousQuestionButton.disabled = state.currentIndex === 0;
+  els.inlineNextQuestionButton.disabled = isLast;
+  els.inlineNextQuestionButton.textContent = isLast ? '最后一题' : '下一题';
 }
 
 function getSelectedKeys(question) {
@@ -144,6 +166,7 @@ function renderSelectAllButton(question) {
 function toggleSelectAll() {
   const question = state.questions[state.currentIndex];
   if (question.type !== 'multiple') return;
+  startTimerAfterFirstAnswer();
 
   const selectedCount = getSelectedKeys(question).length;
   const isAllSelected = selectedCount === question.options.length;
@@ -152,6 +175,7 @@ function toggleSelectAll() {
 }
 
 function toggleOption(question, key) {
+  startTimerAfterFirstAnswer();
   if (question.type === 'multiple') {
     const selected = new Set(getSelectedKeys(question));
     if (selected.has(key)) {
@@ -166,15 +190,6 @@ function toggleOption(question, key) {
   renderQuestion();
 }
 
-function ensureCurrentAnswered() {
-  const question = state.questions[state.currentIndex];
-  if (!state.answers[question.id]) {
-    alert('请先选择答案');
-    return false;
-  }
-  return true;
-}
-
 function startTimerAfterFirstAnswer() {
   if (!state.startedAt) {
     state.startedAt = Date.now();
@@ -183,14 +198,36 @@ function startTimerAfterFirstAnswer() {
 }
 
 function goNextQuestion() {
-  if (!ensureCurrentAnswered()) return;
-  startTimerAfterFirstAnswer();
-
   if (state.currentIndex < state.questions.length - 1) {
     state.currentIndex += 1;
     renderQuestion();
+    setHistoryState('exam', { index: state.currentIndex });
     return;
   }
+}
+
+function goPreviousQuestion() {
+  if (state.currentIndex > 0) {
+    state.currentIndex -= 1;
+    renderQuestion();
+    setHistoryState('exam', { index: state.currentIndex });
+  }
+}
+
+function getAnsweredCount() {
+  return state.questions.filter((question) => Boolean(state.answers[question.id])).length;
+}
+
+function getUnansweredCount() {
+  return state.questions.length - getAnsweredCount();
+}
+
+function submitExam() {
+  const unansweredCount = getUnansweredCount();
+  const message = unansweredCount
+    ? `还有 ${unansweredCount} 题未作答，确定交卷吗？`
+    : '确定交卷吗？';
+  if (!confirm(message)) return;
   finishExam();
 }
 
@@ -211,7 +248,7 @@ function stopTimer() {
 function finishExam() {
   stopTimer();
   const submittedAt = new Date();
-  const durationMs = Math.max(0, Date.now() - state.startedAt);
+  const durationMs = state.startedAt ? Math.max(0, Date.now() - state.startedAt) : 0;
   const result = calculateScore(state.questions, state.answers);
   const record = {
     id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
@@ -233,6 +270,60 @@ function finishExam() {
   state.currentTab = 'all';
   showView('result');
   renderResult();
+  setHistoryState('result');
+}
+
+function openQuestionSheet() {
+  renderQuestionSheet();
+  els.questionSheet.classList.remove('hidden');
+}
+
+function closeQuestionSheet() {
+  els.questionSheet.classList.add('hidden');
+}
+
+function renderQuestionSheet() {
+  const answeredCount = getAnsweredCount();
+  els.questionSheetSummary.textContent = `已答 ${answeredCount} / ${state.questions.length}，未答 ${state.questions.length - answeredCount}`;
+  const groups = [
+    ['single', '单选题'],
+    ['multiple', '多选题'],
+    ['judge', '判断题'],
+  ];
+
+  els.questionSheetBody.innerHTML = groups.map(([type, title]) => {
+    const questions = state.questions
+      .map((question, index) => ({ question, index }))
+      .filter((item) => item.question.type === type);
+    return `
+      <section class="question-sheet-group">
+        <h3>${title}</h3>
+        <div class="question-sheet-grid">
+          ${questions.map(({ question, index }) => {
+            const isAnswered = Boolean(state.answers[question.id]);
+            const isCurrent = index === state.currentIndex;
+            return `
+              <button
+                class="question-sheet-item ${isAnswered ? 'answered' : ''} ${isCurrent ? 'current' : ''}"
+                type="button"
+                data-index="${index}"
+              >
+                <strong>${index + 1}</strong>
+                <span>${isAnswered ? '已答' : '未答'}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </section>
+    `;
+  }).join('');
+}
+
+function jumpToQuestion(index) {
+  state.currentIndex = index;
+  closeQuestionSheet();
+  renderQuestion();
+  setHistoryState('exam', { index: state.currentIndex });
 }
 
 function renderResult() {
@@ -279,14 +370,14 @@ function renderReview(tabName) {
   `).join('');
 }
 
-function renderRanking() {
+function renderRanking(target = els.rankingList) {
   const ranking = getDailyRanking(readRecords());
   if (!ranking.length) {
-    els.rankingList.innerHTML = '<div class="empty-state">今日暂无排行</div>';
+    target.innerHTML = '<div class="empty-state">今日暂无排行</div>';
     return;
   }
 
-  els.rankingList.innerHTML = ranking.map((record) => {
+  target.innerHTML = ranking.map((record) => {
     const badgeClass = record.rank === 1 ? 'top gold' : record.rank === 2 ? 'top silver' : record.rank === 3 ? 'top bronze' : '';
     const meClass = state.result && record.id === state.result.id ? '<span class="me-flag">我</span>' : '';
     return `
@@ -302,28 +393,10 @@ function renderRanking() {
   }).join('');
 }
 
-function renderHistory(phone) {
-  const records = readRecords()
-    .filter((record) => record.phone === phone)
-    .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
-
-  els.historyHint.textContent = records.length ? `共 ${records.length} 次` : '暂无记录';
-  if (!records.length) {
-    els.historyList.className = 'empty-state';
-    els.historyList.textContent = '暂无考试记录';
-    return;
-  }
-
-  els.historyList.className = '';
-  els.historyList.innerHTML = records.map((record) => `
-    <div class="history-item">
-      <div>
-        <strong>${getScoreText(record.score)} 分</strong><br>
-        <span>${new Date(record.submittedAt).toLocaleString()} · 用时 ${formatDuration(record.durationMs)}</span>
-      </div>
-      <span>${record.correctCount}/${record.questionCount}</span>
-    </div>
-  `).join('');
+function openRankingView() {
+  showView('ranking');
+  renderRanking(els.homeRankingList);
+  setHistoryState('ranking');
 }
 
 function escapeHtml(value) {
@@ -350,21 +423,23 @@ els.loginForm.addEventListener('submit', (event) => {
   startExam({ name, phone });
 });
 
-els.queryHistoryButton.addEventListener('click', () => {
-  const phone = els.queryPhoneInput.value.trim();
-  if (!validatePhone(phone)) {
-    alert('请输入正确的 11 位手机号');
-    return;
-  }
-  renderHistory(phone);
-});
-
+els.homeRankingButton.addEventListener('click', openRankingView);
 els.selectAllButton.addEventListener('click', toggleSelectAll);
-els.nextQuestionButton.addEventListener('click', goNextQuestion);
+els.questionCardButton.addEventListener('click', openQuestionSheet);
+els.previousQuestionButton.addEventListener('click', goPreviousQuestion);
+els.inlineNextQuestionButton.addEventListener('click', goNextQuestion);
+els.submitExamButton.addEventListener('click', submitExam);
+els.questionSheetBackdrop.addEventListener('click', closeQuestionSheet);
+els.closeQuestionSheetButton.addEventListener('click', closeQuestionSheet);
+els.questionSheetBody.addEventListener('click', (event) => {
+  const button = event.target.closest('.question-sheet-item');
+  if (!button) return;
+  jumpToQuestion(Number(button.dataset.index));
+});
 els.restartButton.addEventListener('click', () => startExam(state.user));
 els.homeButton.addEventListener('click', () => showView('login'));
 els.backButton.addEventListener('click', () => {
-  if (els.resultView.classList.contains('active')) {
+  if (els.resultView.classList.contains('active') || els.rankingView.classList.contains('active')) {
     showView('login');
   } else if (confirm('考试尚未完成，确定返回首页吗？')) {
     stopTimer();
@@ -372,18 +447,39 @@ els.backButton.addEventListener('click', () => {
   }
 });
 els.rankingShortcut.addEventListener('click', () => {
-  if (!state.result) {
-    state.result = {
-      score: 0,
-      durationMs: 0,
-      details: [],
-    };
+  if (els.examView.classList.contains('active')) {
+    openQuestionSheet();
+    return;
   }
-  showView('result');
-  setActiveTab('ranking');
+  openRankingView();
 });
 els.tabs.forEach((tab) => {
   tab.addEventListener('click', () => setActiveTab(tab.dataset.tab));
 });
 
 window.addEventListener('beforeunload', stopTimer);
+window.addEventListener('popstate', (event) => {
+  const payload = event.state;
+  if (!payload) return;
+
+  if (payload.view === 'exam' && state.questions.length) {
+    state.currentIndex = Math.min(Math.max(Number(payload.index) || 0, 0), state.questions.length - 1);
+    showView('exam');
+    renderQuestion();
+    return;
+  }
+
+  if (payload.view === 'ranking') {
+    showView('ranking');
+    renderRanking(els.homeRankingList);
+    return;
+  }
+
+  if (payload.view === 'result' && state.result) {
+    showView('result');
+    renderResult();
+    return;
+  }
+
+  showView('login');
+});
