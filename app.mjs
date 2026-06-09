@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from './questions.mjs?v=20260609k';
+import { QUESTION_BANK } from './questions.mjs?v=20260609l';
 import {
   EXAM_COUNTS,
   TYPE_LABELS,
@@ -8,7 +8,7 @@ import {
   getLocalDateKey,
   getScoreText,
   pickExamQuestions,
-} from './examLogic.mjs?v=20260609k';
+} from './examLogic.mjs?v=20260609l';
 
 const STORAGE_KEY = 'supply-chain-exam-records-v1';
 

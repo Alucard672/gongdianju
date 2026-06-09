@@ -396,10 +396,15 @@ input:focus {
 }
 
 .question-nav {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -4px 0 14px;
+}
+
+.question-nav button {
+  min-width: 88px;
+  padding: 0 16px;
 }
 
 .exam-actions,
