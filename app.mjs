@@ -1,4 +1,4 @@
-import { QUESTION_BANK } from './questions.mjs?v=20260609z5';
+import { QUESTION_BANK } from './questions.mjs?v=20260609z6';
 import {
   EXAM_COUNTS,
   TYPE_LABELS,
@@ -7,7 +7,7 @@ import {
   getLocalDateKey,
   getScoreText,
   pickExamQuestions,
-} from './examLogic.mjs?v=20260609z5';
+} from './examLogic.mjs?v=20260609z6';
 
 // 与页面同域，避免 workers.dev 在国内被运营商重置导致排行榜/云端保存失败
 const API_BASE = '';
@@ -313,6 +313,7 @@ async function finishExam() {
   state.result = record;
   state.submitted = true;
   state.currentTab = 'all';
+  rankingCache = { at: 0, data: null };
   showView('result');
   renderResult();
   setHistoryState('result');
@@ -481,19 +482,35 @@ function renderReview(tabName) {
   }).join('');
 }
 
+let rankingCache = { at: 0, data: null };
+
 async function renderRanking(target = els.rankingList) {
-  target.innerHTML = '<div class="empty-state">排行榜加载中...</div>';
+  // 15 秒内直接用已加载数据，切分栏秒显
+  const fresh = rankingCache.data && Date.now() - rankingCache.at < 15000;
+  if (fresh) {
+    paintRanking(target, rankingCache.data);
+    return;
+  }
+
+  if (!rankingCache.data) target.innerHTML = '<div class="empty-state">排行榜加载中...</div>';
   let ranking = [];
   try {
     const response = await fetch(`${API_BASE}/ranking`);
     const payload = await response.json();
     if (!response.ok || !payload.ok) throw new Error(payload.error || '加载失败');
     ranking = payload.ranking || [];
+    rankingCache = { at: Date.now(), data: ranking };
   } catch (error) {
-    target.innerHTML = `<div class="empty-state">排行榜加载失败：${escapeHtml(error.message)}</div>`;
+    if (!rankingCache.data) {
+      target.innerHTML = `<div class="empty-state">排行榜加载失败：${escapeHtml(error.message)}</div>`;
+    }
     return;
   }
 
+  paintRanking(target, ranking);
+}
+
+function paintRanking(target, ranking) {
   if (!ranking.length) {
     target.innerHTML = '<div class="empty-state">今日暂无排行</div>';
     return;

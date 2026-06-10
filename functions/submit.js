@@ -1,4 +1,4 @@
-import { json, getDateKey, validateRecord, toPublicRecord } from './_shared.js';
+import { json, getBeijingDateKey, validateRecord, toPublicRecord } from './_shared.js';
 
 export async function onRequestPost({ request, env }) {
   const body = await request.json().catch(() => null);
@@ -16,7 +16,7 @@ export async function onRequestPost({ request, env }) {
     questionCount: Number(body.questionCount || 95),
     durationMs: Math.max(0, Math.floor(Number(body.durationMs))),
     submittedAt,
-    dateKey: getDateKey(submittedAt),
+    dateKey: getBeijingDateKey(new Date(submittedAt)),
   };
 
   const statements = [
